@@ -1,24 +1,13 @@
 # Netlify 部署配置 - sanlian-judge
-# 项目根目录包含 index.html + static/ + api/ + netlify/functions/
 
 [build]
-  # 前端静态文件就在项目根目录(index.html + static/)
   publish = "."
-  # Python Functions 目录(每个 .py 一个 function)
   functions = "netlify/functions"
-  # 安装 Python 依赖到 Netlify 提供的 site-packages
   command = "pip install -r requirements.txt"
 
 [build.environment]
   PYTHON_VERSION = "3.11"
-  # 让 pip 装到 Netlify 函数能找到的路径
-  PIP_TARGET = "$HOME/.local/lib/python3.11/site-packages"
-  PYTHONPATH = "$HOME/.local/lib/python3.11/site-packages"
 
-# 注意:函数超时需在 Netlify 控制台 Dashboard 中设置
-# analyze 端点需要 45-180s (LLM 推理),profile/rank/avatar 不超过 10s
-
-# 路由:把所有 /api/* 重写到对应的 netlify functions
 [[redirects]]
   from = "/api/avatar"
   to = "/.netlify/functions/avatar"
@@ -43,14 +32,11 @@
   status = 200
   force = true
 
-# SPA fallback:所有未匹配的路径都回退到 index.html
-# 注意:必须放在 /api/* 重写规则之后,否则 /api/* 会被这里吃掉
 [[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
 
-# 安全头 + 静态资源缓存
 [[headers]]
   for = "/static/*"
   [headers.values]
