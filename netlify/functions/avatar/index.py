@@ -1,40 +1,23 @@
-"""
-netlify/functions/avatar.py
-GET /api/avatar?url=<encoded_bilibili_avatar_url>
-
-头像代理:绕过 Chrome ORB (Opaque Response Blocking)
-B 站图片服务器不返回 CORS 头,html2canvas 截屏时会失败。
-这里用我们自己的 origin 转发图片字节,加 CORS 头。
-
-SSRF 防护:只允许 hdslb.com / hdslb.cn / bilivideo.com 域名。
-"""
+"""netlify/functions/avatar/index.py - GET /api/avatar (binary image proxy)"""
 import sys, os
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".."))
 
 import base64
 import logging
+import requests
 from urllib.parse import urlparse
 
-import requests
-
 _ALLOWED_AVATAR_HOSTS = (
-    "i0.hdslb.com",
-    "i1.hdslb.com",
-    "i2.hdslb.com",
-    "i0.hdslb.cn",
-    "i1.hdslb.cn",
-    "i2.hdslb.cn",
-    "s1.hdslb.com",
-    "s2.hdslb.com",
-    "bilivideo.com",
-    "bilivideo.cn",
+    "i0.hdslb.com", "i1.hdslb.com", "i2.hdslb.com",
+    "i0.hdslb.cn", "i1.hdslb.cn", "i2.hdslb.cn",
+    "s1.hdslb.com", "s2.hdslb.com",
+    "bilivideo.com", "bilivideo.cn",
 )
 
 logger = logging.getLogger(__name__)
 
 
 def _is_allowed_avatar_url(url: str) -> bool:
-    """严格校验 hostname,防止 SSRF。"""
     if not url or not url.startswith(("http://", "https://")):
         return False
     try:
@@ -91,7 +74,6 @@ def handler(event, context):
             chunks.append(chunk)
         content = b"".join(chunks)
 
-        # Netlify Functions 用 isBase64Encoded 返回二进制
         b64 = base64.b64encode(content).decode("ascii")
         return {
             "statusCode": 200,
