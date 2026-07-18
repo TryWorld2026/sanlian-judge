@@ -15,10 +15,8 @@
   PIP_TARGET = "$HOME/.local/lib/python3.11/site-packages"
   PYTHONPATH = "$HOME/.local/lib/python3.11/site-packages"
 
-[functions]
-  # 函数超时(秒)。注意:Netlify Free 计划硬上限 10s
-  # analyze 端点需要 45-180s，必须升级到 Netlify Pro 才能使用
-  timeout = 10
+# 注意:函数超时需在 Netlify 控制台 Dashboard 中设置
+# analyze 端点需要 45-180s (LLM 推理),profile/rank/avatar 不超过 10s
 
 # 路由:把所有 /api/* 重写到对应的 netlify functions
 [[redirects]]
