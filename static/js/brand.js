@@ -56,6 +56,20 @@
     return delta > 0 ? Math.floor(delta / 86400) : 0;
   }
 
+  // ========== B 站 API 调用 (通过 Netlify 函数 + Wbi 签名) ==========
+
+  function fetchBiliProfile(uid) {
+    // 调 /api/profile (Netlify 函数带 Wbi 签名,使用 Node.js crypto 模块)
+    // 留够 15s 超时(B站 4 个接口并行 + Wbi 密钥获取)
+    return getJSON(API_BASE + "/api/profile?uid=" + encodeURIComponent(uid), PROFILE_TIMEOUT)
+      .then(function (resp) {
+        if (!resp || resp.code !== 0) {
+          return Promise.reject(new Error((resp && resp.error) || "B站打不开,可能是它家服务器今天闹脾气"));
+        }
+        return resp.data;
+      });
+  }
+
   // ========== Toast ==========
   function toast(msg, type) {
     var c = $("toast-container");
@@ -276,20 +290,18 @@
       toast("印章盖了太久没盖下来,稍后再来一次吧", "error");
     }, ANALYZE_TIMEOUT + 15000);
 
-    // Step 1: profile
-    getJSON(API_BASE + "/api/profile?uid=" + encodeURIComponent(raw), PROFILE_TIMEOUT)
-      .then(function (resp) {
-        if (!resp || resp.code !== 0) throw new Error((resp && resp.error) || "B 站打不开,可能是它家服务器今天闹脾气");
-        setStep(2);
-        showLoadingHint("把稿件投进鉴定炉 ...");
-        setBar(40);
-        // Step 2: analyze
-        return postJSON(API_BASE + "/api/analyze", { uid: raw, profile: resp.data }, ANALYZE_TIMEOUT)
-          .then(function (r2) {
-            if (!r2 || r2.code !== 0) throw new Error((r2 && r2.error) || "三连鉴定委员会算挂了,稍后再试");
-            return { profile: resp.data, report: r2.data };
-          });
-      })
+    // Step 1: profile (浏览器直接调 B 站 API,避免 Netlify 共享 IP 被风控)
+    return fetchBiliProfile(raw).then(function (profile) {
+      setStep(2);
+      showLoadingHint("把稿件投进鉴定炉 ...");
+      setBar(40);
+      // Step 2: analyze (profile 随请求传入,后端不再自行拉取)
+      return postJSON(API_BASE + "/api/analyze", { uid: raw, profile: profile }, ANALYZE_TIMEOUT)
+        .then(function (r2) {
+          if (!r2 || r2.code !== 0) throw new Error((r2 && r2.error) || "三连鉴定委员会算挂了,稍后再试");
+          return { profile: profile, report: r2.data };
+        });
+    })
       .then(function (data) {
         setStep(3);
         setBar(100);
