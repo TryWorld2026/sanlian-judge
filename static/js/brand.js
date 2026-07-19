@@ -49,6 +49,58 @@
   }
 
   // ========== Toast ==========
+
+  function computeJoinDays(regtime) {
+    if (!regtime || regtime <= 0) return 0;
+    var delta = Math.floor(Date.now() / 1000) - regtime;
+    return delta > 0 ? Math.floor(delta / 86400) : 0;
+  }
+
+  // ========== B 站 API 直连 ==========
+  function fetchBiliProfile(uid) {
+    var headers = {
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+      Referer: "https://www.bilibili.com/",
+    };
+    var infoUrl = "https://api.bilibili.com/x/space/acc/info?mid=" + encodeURIComponent(uid);
+    var relationUrl = "https://api.bilibili.com/x/relation?mid=" + encodeURIComponent(uid);
+    var statUrl = "https://api.bilibili.com/x/space/stat?mid=" + encodeURIComponent(uid);
+    var videosUrl = "https://api.bilibili.com/x/space/arc/search?mid=" + encodeURIComponent(uid) + "&ps=10&pn=1";
+
+    return Promise.all([
+      fetchWithTimeout(infoUrl, { headers: headers }, PROFILE_TIMEOUT).then(function (r) { return r.ok ? r.json() : Promise.reject(new Error("info " + r.status)); }),
+      fetchWithTimeout(relationUrl, { headers: headers }, PROFILE_TIMEOUT).then(function (r) { return r.ok ? r.json() : Promise.reject(new Error("relation " + r.status)); }),
+      fetchWithTimeout(statUrl, { headers: headers }, PROFILE_TIMEOUT).then(function (r) { return r.ok ? r.json() : Promise.reject(new Error("stat " + r.status)); }),
+      fetchWithTimeout(videosUrl, { headers: headers }, PROFILE_TIMEOUT).then(function (r) { return r.ok ? r.json() : Promise.reject(new Error("videos " + r.status)); }),
+    ]).then(function (results) {
+      var info = results[0], relation = results[1], stat = results[2], videosRaw = results[3];
+      if (!info || info.code !== 0) {
+        var errMap = { "-352": "B站触发风控，请稍后再试", "-404": "用户不存在", "404": "用户不存在" };
+        return Promise.reject(new Error(errMap[String(info && info.code)] || "用户不存在"));
+      }
+      var d = info.data || {};
+      var vipInfo = d.vip || {};
+      var vipLabel = vipInfo && vipInfo.label ? vipInfo.label.text : null;
+      var vipType = vipInfo ? (vipInfo.type != null ? vipInfo.type : vipInfo.vipType) : null;
+      var official = d.official || {};
+      var regtime = d.jointime || d.regtime || 0;
+      var videoList = (videosRaw && videosRaw.data && videosRaw.data.list && videosRaw.data.list.vlist) || [];
+      var videos = videoList.slice(0, 10).map(function (v) {
+        return { title: v.title || "", length: v.length || "00:00", play: v.play || 0, created: v.created || 0, bvid: v.bvid || "", aid: v.aid || 0 };
+      });
+      return {
+        uid: String(uid), name: d.name, face: d.face, sex: d.sex, sign: d.sign, level: d.level,
+        fans: (relation && relation.data && relation.data.follower) || 0,
+        following: (relation && relation.data && relation.data.following) || 0,
+        vipType: vipType, vipLabel: vipLabel,
+        official: { role: official.role || 0, title: official.title || "", desc: official.desc || "" },
+        regtime: regtime, joinDays: computeJoinDays(regtime),
+        videos: videos, totalVideos: (stat && stat.data && stat.data.video) || 0, totalPlays: 0,
+      };
+    });
+  }
+
+  // ========== Toast ==========
   function toast(msg, type) {
     var c = $("toast-container");
     if (!c) return;
@@ -268,20 +320,18 @@
       toast("印章盖了太久没盖下来,稍后再来一次吧", "error");
     }, ANALYZE_TIMEOUT + 15000);
 
-    // Step 1: profile
-    getJSON(API_BASE + "/api/profile?uid=" + encodeURIComponent(raw), PROFILE_TIMEOUT)
-      .then(function (resp) {
-        if (!resp || resp.code !== 0) throw new Error((resp && resp.error) || "B 站打不开,可能是它家服务器今天闹脾气");
-        setStep(2);
-        showLoadingHint("把稿件投进鉴定炉 ...");
-        setBar(40);
-        // Step 2: analyze
-        return postJSON(API_BASE + "/api/analyze", { uid: raw, profile: resp.data }, ANALYZE_TIMEOUT)
-          .then(function (r2) {
-            if (!r2 || r2.code !== 0) throw new Error((r2 && r2.error) || "三连鉴定委员会算挂了,稍后再试");
-            return { profile: resp.data, report: r2.data };
-          });
-      })
+    // Step 1: profile (浏览器直接调 B 站 API,避免 Netlify 共享 IP 被风控)
+    return fetchBiliProfile(raw).then(function (profile) {
+      setStep(2);
+      showLoadingHint("把稿件投进鉴定炉 ...");
+      setBar(40);
+      // Step 2: analyze (profile 随请求传入,后端不再自行拉取)
+      return postJSON(API_BASE + "/api/analyze", { uid: raw, profile: profile }, ANALYZE_TIMEOUT)
+        .then(function (r2) {
+          if (!r2 || r2.code !== 0) throw new Error((r2 && r2.error) || "三连鉴定委员会算挂了,稍后再试");
+          return { profile: profile, report: r2.data };
+        });
+    })
       .then(function (data) {
         setStep(3);
         setBar(100);
@@ -320,7 +370,7 @@
         if (/abort/i.test(msg) || /超时/.test(msg)) {
           msg = "B 站敲门敲太久没人开(>15s),稍后再试";
         } else if (/Failed to fetch|fetch/i.test(msg)) {
-          msg = "请用 http://localhost:5000 打开,别直接双击 index.html 哦";
+          msg = "请确认网络正常,能访问 B 站和本页面";
         }
         toast(msg, "error");
         console.error("[brand] analyze error:", e);
