@@ -149,7 +149,7 @@
       setBar(pct);
       if (sec === 15) {
         setStep(2);
-        showLoadingHint("把稿件投进鉴定炉 ...");
+        showLoadingHint("正在分析 B 站数据,生成鉴定报告 ...");
       } else if (sec === 30) {
         setStep(3);
         showLoadingHint("三连鉴定委员会正在激烈讨论,马上出结果 ...");
@@ -292,7 +292,7 @@
     // Step 1: profile (走本地后端 /api/profile,后端用 curl_cffi 直连 B 站)
     return fetchBiliProfile(raw).then(function (profile) {
       setStep(2);
-      showLoadingHint("把稿件投进鉴定炉 ...");
+      showLoadingHint("正在分析 B 站数据,生成鉴定报告 ...");
       setBar(40);
       // Step 2: analyze (profile 随请求传入,后端不再自行拉取)
       return postJSON(API_BASE + "/api/analyze", { uid: raw, profile: profile }, ANALYZE_TIMEOUT)
@@ -304,7 +304,7 @@
       .then(function (data) {
         setStep(3);
         setBar(100);
-        showLoadingHint("盖章完成 ✓");
+        showLoadingHint("鉴定报告已生成 ✓");
         // 写入缓存
         try {
           if (window.CyberJudgeCache && window.CyberJudgeCache.set) {
@@ -340,6 +340,8 @@
           msg = "B 站敲门敲太久没人开(>15s),稍后再试";
         } else if (/Failed to fetch|fetch/i.test(msg)) {
           msg = "请确认网络正常,能访问 B 站和本页面";
+        } else if (/JSON|Unexpected token|SyntaxError/i.test(msg)) {
+          msg = "后端服务未就绪,请确认 Worker 已部署";
         }
         toast(msg, "error");
         console.error("[brand] analyze error:", e);

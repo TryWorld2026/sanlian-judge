@@ -90,6 +90,7 @@
         // err.message 可能 undefined(abort 后是 DOMException.name='AbortError')
         var msg = (err && err.message) || (err && err.name) || "网络异常";
         if (/abort/i.test(msg)) msg = "请求超时,稍后再试";
+        else if (/JSON|SyntaxError/i.test(err && err.name || "")) msg = "排行榜数据异常,稍后再试";
         list.innerHTML = '<div class="rank-empty">// ' + esc(msg) + '</div>';
       });
   }
