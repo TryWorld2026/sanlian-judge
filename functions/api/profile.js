@@ -85,9 +85,8 @@ function json(data, status = 200) {
 
 async function getWbiKeys() {
   if (Date.now() < wbiCache.expires && wbiCache.img_key) return wbiCache;
-  const resp = await fetch('https://api.bilibili.com/x/web-interface/nav', {
-    headers: { 'User-Agent': 'Mozilla/5.0', Referer: 'https://www.bilibili.com/' },
-  });
+  const resp = await fetchWithProxy('https://api.bilibili.com/x/web-interface/nav');
+  if (!resp) throw new Error('Failed to fetch WBI keys');
   const data = await resp.json();
   const nav = data.data || {};
   const imgUrl = (nav.wbi_img || {}).img_url || nav.wbi_img_url || '';
@@ -113,17 +112,38 @@ function encWbi(params, mixinKey) {
   return { w_rid: MD5(sorted + mixinKey), wts: String(wts) };
 }
 
+// CORS 代理:绕过B站对Cloudflare IP的风控/限流
+const CORS_PROXIES = [
+  'https://api.allorigins.win/raw?url=',
+  'https://corsproxy.io/?url=',
+];
+
+async function fetchWithProxy(url) {
+  // 先尝试直连，如果失败则轮询代理
+  for (const proxy of ['', ...CORS_PROXIES]) {
+    try {
+      const fullUrl = proxy ? proxy + encodeURIComponent(url) : url;
+      const resp = await fetch(fullUrl, {
+        headers: { 'User-Agent': 'Mozilla/5.0', Referer: 'https://www.bilibili.com/' },
+        signal: AbortSignal.timeout(10000),
+      });
+      if (resp.ok) return resp;
+    } catch (_) {
+      // 继续尝试下一个代理
+    }
+  }
+  return null;
+}
+
 async function fetchBili(url, params = {}) {
   const keys = await getWbiKeys();
   const mixinKey = getMixin(keys.img_key, keys.sub_key);
   const signed = encWbi(params, mixinKey);
   const allParams = { ...params, ...signed };
   const qs = Object.entries(allParams).map(([k, v]) => `${k}=${encodeURIComponent(v)}`).join('&');
-  const resp = await fetch(`${url}?${qs}`, {
-    headers: { 'User-Agent': 'Mozilla/5.0', Referer: 'https://www.bilibili.com/' },
-    signal: AbortSignal.timeout(10000),
-  });
-  if (!resp.ok) return null;
+  const fullUrl = `${url}?${qs}`;
+  const resp = await fetchWithProxy(fullUrl);
+  if (!resp) return null;
   return resp.json();
 }
 
