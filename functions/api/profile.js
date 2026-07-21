@@ -170,8 +170,10 @@ export async function onRequest(context) {
     ]);
 
     if (!info || info.code !== 0) {
+      const errCode = info ? String(info.code) : 'unknown';
+      console.error('bili api error:', 'uid=' + uid, 'code=' + errCode, 'msg=' + ((info && info.message) || ''));
       const errMap = { '-352': 'B站触发风控，请稍后再试', '-404': '用户不存在', '404': '用户不存在', '-401': 'B站认证失败' };
-      return json({ code: -1, data: null, error: errMap[info ? String(info.code) : ''] || '用户不存在' });
+      return json({ code: -1, data: null, error: errMap[errCode] || ('B站API错误: ' + errCode) });
     }
 
     const d = info.data || {};
