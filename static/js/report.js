@@ -314,7 +314,7 @@
      - 基于 seed hash 生成稳定的几何头像
      - 零网络依赖,同账号永远同一形状
      ============================================================ */
-  function generateLocalAvatar(seed) {
+  function generateLocalAvatar(seed, overlay) {
     var s = String(seed || "anonymous");
     // 简单但稳定的 hash
     var h1 = 0, h2 = 0, h3 = 0, h4 = 0;
@@ -345,12 +345,15 @@
         return 'x="' + (140 - parseInt(x) - 25) + '"';
       });
     });
-    var initial = s.charAt(0).toUpperCase();
+    // overlay 为 emoji 时,优先画 emoji(更大更醒目);否则画首字母
+    var center = overlay
+      ? '<text x="80" y="110" font-size="96" text-anchor="middle" dominant-baseline="middle">' + escape(overlay) + '</text>'
+      : '<text x="80" y="90" font-family="JetBrains Mono, monospace" font-size="48" font-weight="900" fill="white" text-anchor="middle" opacity="0.85">' + escape(s.charAt(0).toUpperCase()) + '</text>';
     var svg =
       '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160" width="160" height="160">' +
         '<rect width="160" height="160" fill="' + bg + '"/>' +
         cells.join("") + mirrored.join("") +
-        '<text x="80" y="90" font-family="JetBrains Mono, monospace" font-size="48" font-weight="900" fill="white" text-anchor="middle" opacity="0.85">' + escape(initial) + '</text>' +
+        center +
       '</svg>';
     return "data:image/svg+xml;utf8," + encodeURIComponent(svg);
   }
@@ -363,11 +366,12 @@
     var myName = escape(safeGet(profile, "name", "你"));
     var myFace = escape(proxyAvatar(safeGet(profile, "face", "")));
     var mateName = escape(d.name || "???");
-    var mateMid = escape(d.mid || d.uid || mateName);
+    var mateEmoji = escape(d.avatarEmoji || "");
     var sim = clampNumber(d.similarity, 0, 100, 50);
     var reason = escape(d.reason || "量子纠缠命中注定");
-    // 灵魂伴侣头像:零网络依赖的本地 SVG
-    var mateFace = generateLocalAvatar(mateMid || mateName);
+    // 灵魂伴侣视觉:用 emoji 当头像,名字当 seed 生成配色
+    var seedKey = mateName + "|" + mateEmoji;
+    var mateFace = generateLocalAvatar(seedKey, mateEmoji);
 
     return moduleWrap(
       "mod-soulmate",
@@ -385,8 +389,8 @@
           '<div class="soulmate-sim-label">MATCH</div>' +
         '</div>' +
         '<div class="soulmate-person">' +
-          '<img class="soulmate-avatar" src="' + mateFace + '" alt="">' +
-          '<div class="soulmate-name">' + mateName + '</div>' +
+          '<img class="soulmate-avatar" src="' + mateFace + '" alt="" onerror="this.style.background=\'#1c1c2a\'">' +
+          '<div class="soulmate-name">' + mateName + (mateEmoji ? ' <span style="font-size:18px">' + mateEmoji + '</span>' : '') + '</div>' +
         '</div>' +
       '</div>' +
       '<div class="soulmate-reason">' + reason + '</div>'

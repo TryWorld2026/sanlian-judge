@@ -1408,7 +1408,7 @@
         <input id="uid-input" type="text" value="546195" maxlength="18" placeholder="546195" inputmode="numeric" pattern="[0-9]*" autocomplete="off" />
         <button id="btn-submit" type="button">开始鉴定 →</button>
       </div>
-      <p class="input-tip"><kbd>数字生命卡兹克 313468110</kbd><span class="tip-sep">/</span><kbd>秋芝2046 385670211</kbd><span class="tip-sep">/</span><kbd>老番茄 546195</kbd><span class="tip-sep">/</span><kbd>影视飓风 946974</kbd><span class="tip-sep">/</span><kbd>罗翔说刑法 517327498</kbd></p>
+      <p class="input-tip">输入任意 B 站 UID(1-18 位数字),三连鉴定委员会为你当场开盒</p>
       <div id="input-hint" class="input-hint"></div>
     </div>
   </div>
@@ -1416,8 +1416,8 @@
   <aside id="cert-card" class="cert-card">
     <div class="cert-header">
       <div class="cert-stamp">B 站权威认证</div>
-      <div id="cert-name" class="cert-name">老番茄</div>
-      <div id="cert-uid" class="cert-uid">UID 546195</div>
+      <div id="cert-name" class="cert-name">神秘鉴定对象</div>
+      <div id="cert-uid" class="cert-uid">UID 待鉴定</div>
       <div id="cert-level-wrap" style="display:none"><span class="cert-level" id="cert-level"></span></div>
     </div>
     <div class="cert-score">
@@ -1435,7 +1435,7 @@
       <button class="sanlian-btn coin" data-tip="投币" type="button">🪙 投币</button>
       <button class="sanlian-btn fav" data-tip="收藏" type="button">⭐ 收藏</button>
     </div>
-    <div id="cert-quote" class="cert-quote">老番茄永远的神,这鉴定我服了</div>
+    <div id="cert-quote" class="cert-quote">输入 B 站 UID,三连鉴定委员会为你揭晓结果</div>
     <button id="btn-open-report" class="cert-report-cta" type="button" style="display:none">
       📄 查看完整鉴定报告 →
     </button>
@@ -1465,40 +1465,7 @@
 
 <section class="comments">
   <h2>鉴定弹幕 <span class="label">实时</span></h2>
-  <div id="cmt-list" class="cmt-list">
-    <div class="cmt-item">
-      <div class="cmt-avatar">影</div>
-      <div class="cmt-content">
-        <div class="cmt-name">影视飓风Tim</div>
-        <div class="cmt-text">三连指数 98,实至名归,我先投币为敬 🪙🪙🪙</div>
-        <div class="cmt-time">2 分钟前 · 来自 上海</div>
-      </div>
-    </div>
-    <div class="cmt-item">
-      <div class="cmt-avatar">何</div>
-      <div class="cmt-content">
-        <div class="cmt-name">何同学工作室</div>
-        <div class="cmt-text">鉴定结果:这 UP 主脑洞浓度爆表,建议反复观看 3 遍</div>
-        <div class="cmt-time">5 分钟前 · 来自 北京</div>
-      </div>
-    </div>
-    <div class="cmt-item">
-      <div class="cmt-avatar">罗</div>
-      <div class="cmt-content">
-        <div class="cmt-name">罗翔说刑法</div>
-        <div class="cmt-text">三连指数 99,但作为一个刑法老师,我不建议大家模仿</div>
-        <div class="cmt-time">12 分钟前 · 来自 北京</div>
-      </div>
-    </div>
-    <div class="cmt-item">
-      <div class="cmt-avatar">老</div>
-      <div class="cmt-content">
-        <div class="cmt-name">老番茄</div>
-        <div class="cmt-text">鉴定结果:这是一个正常人 —— 鉴定委员会你在说什么?!</div>
-        <div class="cmt-time">23 分钟前 · 来自 上海</div>
-      </div>
-    </div>
-  </div>
+  <div id="cmt-list" class="cmt-list"></div>
 </section>
 
 <footer>

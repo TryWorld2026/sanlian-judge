@@ -13,9 +13,7 @@ GET /api/rank?type=craziness&page=1&limit=20
     "error": null
   }
 
-数据源:
-  - Vercel KV(若 KV_REST_API_URL + KV_REST_API_TOKEN 已配置)
-  - 否则读取 data/rank.json(预置示例数据 + analyze 写入的真实数据)
+数据源:本地文件 data/rank.json(预置示例数据 + analyze 写入的真实数据)
 """
 
 from __future__ import annotations
@@ -30,7 +28,7 @@ from api._rank_store import read_rank
 
 
 # ---------------------------------------------------------------------------
-# Vercel 入口
+# 本地 handler 入口
 # ---------------------------------------------------------------------------
 
 
@@ -49,6 +47,7 @@ def _parse_query(request: Any) -> Dict[str, str]:
 
 
 def handler(request: Any) -> Dict[str, Any]:
+    """本地 handler 入口(由 scripts/dev_server.py 适配 Flask request 后调用)。"""
     try:
         query = _parse_query(request)
         try:

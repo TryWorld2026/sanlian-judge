@@ -6,7 +6,6 @@
 ![主色 #FB7299](https://img.shields.io/badge/B站粉-FB7299?logo=bilibili&logoColor=white)
 ![B站蓝 #00AEEC](https://img.shields.io/badge/B站蓝-00AEEC?logo=bilibili&logoColor=white)
 ![StepFun](https://img.shields.io/badge/LLM-StepFun%20step--3.7--flash-FF6B6B)
-![Netlify](https://img.shields.io/badge/Deploy-Netlify-00C7B7?logo=netlify&logoColor=white)
 ![Flask](https://img.shields.io/badge/Local-Flask%203.0-black?logo=flask)
 
 ## 这是什么
@@ -29,47 +28,11 @@
 
 > ⚠️ 与 B 站官方无关。本项目是粉丝同人整活作品。
 
-## 项目结构
-
-```
-三连鉴定/
-├── api/                            # 业务逻辑(同时支持 Vercel / Netlify)
-│   ├── profile.py                  # GET  /api/profile  B 站用户数据(4 接口并行)
-│   ├── analyze.py                  # POST /api/analyze  StepFun AI 鉴定(7 模块)
-│   ├── rank.py                     # GET  /api/rank     离谱排行榜
-│   ├── _llm.py                     # StepFun LLM 调用 + JSON 容错解析
-│   └── _rank_store.py              # 排行榜 KV/文件双写
-├── prompts/
-│   ├── system.md                   # 系统 Prompt(首席鉴定官口吻,B 站梗向)
-│   └── user.md                     # 7 模块合并的 User Prompt 模板
-├── data/
-│   └── rank.json                   # 排行榜预置数据(11 条真实 B 站 UP 主)
-├── static/
-│   ├── css/style.css               # B 站双品牌色 + Neo-Brutalist 设计系统
-│   └── js/                         # 前端逻辑(原生 JS,无构建)
-│       ├── brand.js                # 主入口: UID 输入 → loading → 渲染
-│       ├── report.js               # 鉴定证书 9 模块渲染(含三连 + 弹幕评论)
-│       ├── share.js                # html2canvas 分享卡(1080×N PNG,鉴定证书视觉)
-│       ├── rank.js                 # 排行榜弹窗
-│       ├── danmu.js                # 弹幕实时轮播
-│       └── cache.js                # localStorage 缓存(24h TTL + LRU 10)
-├── scripts/
-│   ├── dev_server.py               # 一体化 Flask 本地服务器
-│   ├── test_profile.py             # 调试 B 站 API
-│   ├── verify_mvp.py               # 完整 MVP 验证(11 项)
-│   └── debug_llm_raw.py            # LLM 原始响应诊断
-├── index.html                      # 单页 SPA 入口
-├── netlify.toml                    # Netlify 部署配置(Python 3.11)
-├── requirements.txt                # Python 依赖
-├── .env.example                    # 环境变量示例
-└── README.md                       # 本文件
-```
-
 ## 本地启动
 
 ### 1. 准备环境
 
-- Python 3.11+
+- Python 3.10+
 - 一个 **StepFun(阶跃星辰)** API Key(申请:[platform.stepfun.com](https://platform.stepfun.com))
 
 ### 2. 安装依赖
@@ -81,14 +44,21 @@ Copy-Item .env.example .env
 pip install -r requirements.txt
 ```
 
+> 注意:`requirements.txt` 列了核心依赖,但 `bilibili-api-python` 还需要一个 HTTP 客户端才能发请求(`curl_cffi` / `httpx` / `aiohttp` 三选一)。本项目推荐 `curl_cffi`(自带 TLS 指纹,B 站反爬友好):
+> ```powershell
+> pip install curl_cffi
+> ```
+
 ### 3. 启动开发服务器
 
 ```powershell
-# 方式 A:Flask 一体化服务器(推荐,无需 Vercel/Netlify CLI)
+# 方式 A:Flask 一体化服务器(推荐)
 $env:STEPFUN_API_KEY = "sk-你的key"
 python scripts/dev_server.py
 # 监听 http://localhost:5000
 ```
+
+> 也可以把 `STEPFUN_API_KEY` 写进 `.env` 文件,然后在启动命令前 `Get-Content .env | ForEach-Object { if ($_ -match '^([^=]+)=(.*)$') { Set-Item -Path "env:$($matches[1])" -Value $matches[2] } }`。
 
 ### 4. 浏览器访问
 
@@ -106,39 +76,44 @@ python scripts/test_profile.py 546195
 
 # 端到调 LLM(需 STEPFUN_API_KEY)
 $env:STEPFUN_API_KEY = "sk-你的key"
-python scripts/test_agnes.py
+python scripts/test_analyze.py 546195
 ```
 
-## 部署到 Netlify
+## 项目结构
 
-### 1. 推送代码
-
-```powershell
-git init
-git add .
-git commit -m "feat: 三连鉴定委员会 MVP (StepFun + Netlify)"
-git remote add origin https://github.com/你的用户名/sanlian-judge.git
-git push -u origin main
 ```
-
-### 2. 在 Netlify 导入项目
-
-1. 访问 [app.netlify.com/start](https://app.netlify.com/start)
-2. 导入刚才的 GitHub 仓库
-3. **Site configuration** → **Environment variables** 添加:
-   - `STEPFUN_API_KEY` = `sk-xxx`(必填)
-4. 点击 **Deploy site**
-
-### 3. 验证
-
-部署完成后访问 `https://你的项目名.netlify.app` 即可。
-
-### 架构说明
-
-- 前端 SPA 通过 `index.html` 直接由 Netlify CDN 提供
-- `/api/*` 请求经 `netlify.toml` 的 redirect 转发到 `/.netlify/functions/*`
-- `netlify/functions/*.py` 是 Vercel 风格 handler 的薄包装,通过 `netlify/functions/_adapter.py` 转换 event/response 格式
-- 业务代码(`api/*.py`)**零修改**即可在两个平台运行
+三连鉴定/
+├── api/                            # 业务逻辑
+│   ├── profile.py                  # GET  /api/profile  B 站用户数据(4 接口并行)
+│   ├── analyze.py                  # POST /api/analyze  StepFun AI 鉴定(7 模块)
+│   ├── rank.py                     # GET  /api/rank     离谱排行榜
+│   ├── _llm.py                     # StepFun LLM 调用 + JSON 容错解析
+│   └── _rank_store.py              # 排行榜文件读写(原子写入 + 全局锁)
+├── prompts/
+│   ├── system.md                   # 系统 Prompt(首席鉴定官口吻,B 站梗向)
+│   └── user.md                     # 7 模块合并的 User Prompt 模板
+├── data/
+│   └── rank.json                   # 排行榜预置数据(11 条真实 B 站 UP 主)
+├── static/
+│   ├── css/style.css               # B 站双品牌色 + Neo-Brutalist 设计系统
+│   └── js/                         # 前端逻辑(原生 JS,无构建)
+│       ├── brand.js                # 主入口: UID 输入 → loading → 渲染
+│       ├── report.js               # 鉴定证书 9 模块渲染(含三连 + 弹幕评论)
+│       ├── share.js                # html2canvas 分享卡(1080×N PNG,鉴定证书视觉)
+│       ├── rank.js                 # 排行榜弹窗
+│       ├── danmu.js                # 弹幕实时轮播
+│       └── cache.js                # localStorage 缓存(24h TTL + LRU 10)
+├── scripts/
+│   ├── dev_server.py               # 一体化 Flask 本地服务器
+│   ├── test_profile.py             # 调试 B 站 API
+│   ├── test_analyze.py             # 端到调 LLM
+│   ├── verify_mvp.py               # 完整 MVP 验证(11 项)
+│   └── debug_llm_raw.py            # LLM 原始响应诊断
+├── index.html                      # 单页 SPA 入口
+├── requirements.txt                # Python 依赖
+├── .env.example                    # 环境变量示例
+└── README.md                       # 本文件
+```
 
 ## 三个 API 端点
 
@@ -161,7 +136,7 @@ git push -u origin main
 
 ### GET `/api/rank?type=craziness&page=1&limit=20`
 
-读取离谱指数排行榜(11 条预置真实 B 站 UP 主)。
+读取离谱指数排行榜(11 条预置真实 B 站 UP 主,本地 `data/rank.json` 文件存储)。
 
 ## 关于 StepFun 集成
 
@@ -175,15 +150,14 @@ git push -u origin main
 1. **`response_format=json_object`** 强制 JSON 输出
 2. **`max_tokens=6000`** — 留够预算给 7 模块完整 JSON
 3. **timeout=45s** — 单次调用上限
-4. **2 次重试 + 1s 退避** — 仅重试 5xx / 429 瞬时错误,JSON 解析失败不重试
+4. **3 次重试 + 指数退避** — 仅重试 5xx / 429 瞬时错误,JSON 解析失败不重试
 5. **JSON 容错解析** — 三次回退(直接 parse → 找首个 `{...}` 平衡块 → 兜底默认值)
 6. **Prompt 强约束** — system prompt 明确写"直接输出 JSON,不要解释"
 
 ## 成本估算
 
 - **StepFun API**: 阶跃星辰按量计费(step-3.7-flash 单次 7 模块 ≈ 0.01-0.05 元)
-- **Netlify Hosting**: 免费层(每月 125K function requests)
-- **1000 次鉴定 ≈ ¥10-50**
+- **本地运行**:零成本,自己电脑随便跑
 
 ## 安全说明
 
@@ -196,9 +170,7 @@ git push -u origin main
 
 1. **regtime 为 0 的老账号**:部分 B 站老用户(如老番茄)`regtime` 字段返回 0,前端会显示"元老级"。
 2. **B 站风控 (-352)**:频繁请求可能触发 B 站风控,建议 1-2 秒间隔。
-3. **Netlify 文件系统只读**:部署后 `data/rank.json` 无法写入新数据,排行榜需要外部 KV。本项目已预置 11 条真实数据作为兜底,生产环境建议对接 Upstash Redis。
-4. **html2canvas 跨域**:分享卡依赖 B 站 CDN 头像的 CORS 头,若失败请用 `/api/avatar` 代理头像。
-5. **UID 长度**:B 站 2023 年升级后 UID 最多 18 位(已修正 13 → 18)。
+3. **UID 长度**:B 站 2023 年升级后 UID 最多 18 位(已修正 13 → 18)。
 
 ## 许可
 

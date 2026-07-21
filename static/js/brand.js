@@ -56,17 +56,16 @@
     return delta > 0 ? Math.floor(delta / 86400) : 0;
   }
 
-  // ========== B 站 API 调用 (通过 Netlify 函数 + Wbi 签名) ==========
-
+  // ========== 后端代理获取 B 站数据 ==========
+  // 浏览器直连 B 站需要 Wbi 签名 + CORS 代理,免费代理经常超时/被风控。
+  // 直接走本服务的 /api/profile 端点,后端用 curl_cffi 拿到完整数据。
   function fetchBiliProfile(uid) {
-    // 调 /api/profile (Netlify 函数带 Wbi 签名,使用 Node.js crypto 模块)
-    // 留够 15s 超时(B站 4 个接口并行 + Wbi 密钥获取)
     return getJSON(API_BASE + "/api/profile?uid=" + encodeURIComponent(uid), PROFILE_TIMEOUT)
-      .then(function (resp) {
-        if (!resp || resp.code !== 0) {
-          return Promise.reject(new Error((resp && resp.error) || "B站打不开,可能是它家服务器今天闹脾气"));
+      .then(function (r) {
+        if (!r || r.code !== 0 || !r.data) {
+          throw new Error((r && r.error) || "B站数据获取失败,请稍后再试");
         }
-        return resp.data;
+        return r.data;
       });
   }
 
@@ -290,7 +289,7 @@
       toast("印章盖了太久没盖下来,稍后再来一次吧", "error");
     }, ANALYZE_TIMEOUT + 15000);
 
-    // Step 1: profile (浏览器直接调 B 站 API,避免 Netlify 共享 IP 被风控)
+    // Step 1: profile (走本地后端 /api/profile,后端用 curl_cffi 直连 B 站)
     return fetchBiliProfile(raw).then(function (profile) {
       setStep(2);
       showLoadingHint("把稿件投进鉴定炉 ...");

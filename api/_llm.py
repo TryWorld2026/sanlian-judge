@@ -236,25 +236,9 @@ import functools
 
 def _find_prompts_dir() -> str:
     """
-    兼容 Vercel/Netlify 不同部署环境:
-      - Vercel: 项目根目录的 prompts/
-      - Netlify: prompts/ 放在 netlify/functions 上一级
-      - 本地调试: 项目根目录的 prompts/
+    返回项目根目录下的 prompts/ 目录。
     """
-    candidates = [
-        # 函数文件所在目录的上一级的 prompts
-        os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "prompts"),
-        # 当前工作目录的 prompts
-        os.path.join(os.getcwd(), "prompts"),
-        # Netlify functions 时的相对路径
-        os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "prompts"),
-        os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "prompts"),
-    ]
-    for p in candidates:
-        if os.path.isdir(p):
-            return p
-    # 兜底返回第一个,即使不存在也好让上层报错
-    return candidates[0]
+    return os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "prompts")
 
 
 @functools.lru_cache(maxsize=8)

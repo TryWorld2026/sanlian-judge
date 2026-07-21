@@ -1,0 +1,5 @@
+# Cloudflare Pages 路由配置
+# Pages Functions 优先级高于 _redirects，API 路由由 functions/ 处理
+
+# SPA 回退：所有非 API/非静态文件路由都返回 index.html
+/*  /index.html  200

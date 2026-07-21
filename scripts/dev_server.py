@@ -127,11 +127,11 @@ def static_files(filepath):
 
 
 # ---------------------------------------------------------------------------
-# API 适配:把 Flask request 转 Vercel 风格,复用现有 handler
+# API 适配:把 Flask request 包装成 api/*.py handler 能识别的统一形态
 # ---------------------------------------------------------------------------
 
-class _FlaskLikeVercelRequest:
-    """把 Flask request 包装成 api/*.py 能识别的形态。"""
+class _LocalRequestAdapter:
+    """把 Flask request 包装成 api/*.py 能识别的统一形态(query / body / headers)。"""
 
     def __init__(self, flask_request):
         self._r = flask_request
@@ -150,7 +150,7 @@ class _FlaskLikeVercelRequest:
 
     @property
     def body(self):
-        """返回 dict 形式 body(Vercel 旧版约定)。"""
+        """返回 dict 形式 body。"""
         return self._r.get_json(silent=True) or {}
 
 
@@ -167,7 +167,7 @@ def _to_dict_response(payload):
 
 @app.route("/api/profile", methods=["GET"])
 def api_profile():
-    req = _FlaskLikeVercelRequest(request)
+    req = _LocalRequestAdapter(request)
     return _to_dict_response(profile_handler(req))
 
 
@@ -181,13 +181,13 @@ def api_analyze():
             "data": None,
             "error": "Content-Type 必须为 application/json",
         }), 415
-    req = _FlaskLikeVercelRequest(request)
+    req = _LocalRequestAdapter(request)
     return _to_dict_response(analyze_handler(req))
 
 
 @app.route("/api/rank", methods=["GET"])
 def api_rank():
-    req = _FlaskLikeVercelRequest(request)
+    req = _LocalRequestAdapter(request)
     return _to_dict_response(rank_handler(req))
 
 

@@ -32,13 +32,11 @@ def verify_repo_structure() -> bool:
     section("1. 仓库结构")
     files = [
         "index.html",
-        "package.json",
-        "vercel.json",
         "requirements.txt",
         ".env.example",
         ".gitignore",
-        ".vercelignore",
         "README.md",
+        "CLAUDE.md",
         "api/profile.py",
         "api/analyze.py",
         "api/rank.py",
@@ -54,6 +52,7 @@ def verify_repo_structure() -> bool:
         "static/js/rank.js",
         "static/js/danmu.js",
         "static/js/cache.js",
+        "scripts/dev_server.py",
     ]
     all_ok = True
     for f in files:
@@ -65,16 +64,11 @@ def verify_repo_structure() -> bool:
 def verify_config() -> bool:
     section("2. 配置文件")
     ok = True
-    pkg = json.loads((REPO_ROOT / "package.json").read_text(encoding="utf-8"))
-    ok &= check("package.json 含 scripts.dev", "dev" in pkg.get("scripts", {}))
-
-    vercel = json.loads((REPO_ROOT / "vercel.json").read_text(encoding="utf-8"))
-    ok &= check("vercel.json 注册 api/*.py Python 3.11",
-                vercel.get("functions", {}).get("api/*.py", {}).get("runtime") == "python3.11")
 
     reqs = (REPO_ROOT / "requirements.txt").read_text(encoding="utf-8")
     ok &= check("requirements.txt 含 bilibili-api-python", "bilibili-api-python" in reqs)
     ok &= check("requirements.txt 含 requests", "requests" in reqs)
+    ok &= check("requirements.txt 含 flask", "flask" in reqs)
 
     env_ex = (REPO_ROOT / ".env.example").read_text(encoding="utf-8")
     ok &= check(".env.example 含 STEPFUN_API_KEY", "STEPFUN_API_KEY" in env_ex)
@@ -100,9 +94,6 @@ def verify_html() -> bool:
         ("引入 share.js", "share.js" in html),
         ("引入 rank.js", "rank.js" in html),
         ("引入 danmu.js", "danmu.js" in html),
-        ("示例 UID 老番茄", "546195" in html),
-        ("示例 UID 罗翔", "517327498" in html),
-        ("示例 UID 影视飓风", "946974" in html),
         ("主按钮 开始鉴定", "开始鉴定" in html),
     ]
     ok = all(check(label, cond) for label, cond in checks)

@@ -6,8 +6,8 @@ scripts/test_profile.py - 本地调试脚本
     python scripts/test_profile.py 46143887
 
 说明:
-    - 直接调用 api/profile.py 的 handler,模拟 Vercel 传入的 request 字典
-    - 不需要启动 vercel dev,适合 M1 技术验证阶段
+    - 直接调用 api/profile.py 的 handler,传入 dict 形式 request
+    - 不需要启动 Flask dev server,适合单步调试
     - 结果以 JSON 格式打印到 stdout
 """
 

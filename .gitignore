@@ -18,9 +18,6 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
-# Vercel
-.vercel
-
 # IDE
 .vscode/
 .idea/
@@ -37,6 +34,8 @@ logs/
 scripts/__pycache__/
 *.local
 
+# Local screenshots / data dumps
+test_screenshots/
+
 # Local Netlify folder
 .netlify
-netlify/build-functions

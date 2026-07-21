@@ -1,0 +1,10 @@
+# Cloudflare Pages 缓存头配置
+
+/static/*
+  Cache-Control: public, max-age=31536000, immutable
+
+/api/*
+  Cache-Control: no-store, max-age=0
+
+/*.html
+  Cache-Control: public, max-age=0, must-revalidate

@@ -70,8 +70,8 @@ DEFAULTS: Dict[str, Any] = {
         "luckyNumber": 6,
     },
     "soulMate": {
-        "name": "老番茄",
-        "mid": "546195",
+        "name": "九尾狐",
+        "avatarEmoji": "🦊",
         "similarity": 66,
         "reason": "你们都是 B 站的常住居民,精神频率莫名同步。",
     },
@@ -154,12 +154,12 @@ def _deep_merge_defaults(parsed: Dict[str, Any]) -> Dict[str, Any]:
 
 
 # ---------------------------------------------------------------------------
-# Vercel 入口
+# 本地 handler 入口
 # ---------------------------------------------------------------------------
 
 
 def _parse_body(request: Any) -> Dict[str, Any]:
-    """从 Vercel request 中解析 JSON body。"""
+    """从 request 中解析 JSON body。"""
     body = getattr(request, "body", None)
     if body is None and isinstance(request, dict):
         body = request.get("body")
@@ -274,7 +274,7 @@ def _safe_write_rank(entry: Dict[str, Any]) -> None:
 
 
 def handler(request: Any) -> Dict[str, Any]:
-    """Vercel Serverless Function 入口。"""
+    """本地 handler 入口(由 scripts/dev_server.py 适配 Flask request 后调用)。"""
     try:
         # 兼容 GET 调试
         if isinstance(request, dict) and request.get("query", {}).get("uid") and not _parse_body(request):

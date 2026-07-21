@@ -1,9 +1,8 @@
 """
 /api/profile - 获取 B 站用户公开数据
 
-调用 bilibili-api-python 的 Card / get_user_info / get_videos 三个能力，
-组合为 PRD §3.1 定义的响应结构，兼容 Vercel Serverless Functions
-(模块级 `handler(request)` 入口)。
+调用 bilibili-api-python 的 get_user_info / get_relation_info /
+get_overview_stat / get_videos 四个能力,组合为 PRD §3.1 定义的响应结构。
 
 异常分类:
   - B 站接口超时    -> code: -1, error: "B站接口开小差了"
@@ -58,7 +57,7 @@ def _err(code: int, error: str) -> Dict[str, Any]:
 
 
 def _parse_query(request: Any) -> Dict[str, str]:
-    """从 Vercel request 中提取 query 参数,容忍多种入口形态。"""
+    """从 request 中提取 query 参数,容忍多种入口形态。"""
     query: Dict[str, str] = {}
 
     # 1) 直接属性
@@ -66,7 +65,7 @@ def _parse_query(request: Any) -> Dict[str, str]:
     if isinstance(direct, dict):
         query.update({str(k): str(v) for k, v in direct.items()})
 
-    # 2) 兼容 Vercel 旧的 query 字段名
+    # 2) 兼容多种 query 字段名 (Flask / 旧 Serverless 约定)
     for attr in ("queryStringParameters", "query_string", "params"):
         v = getattr(request, attr, None)
         if isinstance(v, dict):
@@ -340,13 +339,13 @@ def get_profile(uid: str) -> Dict[str, Any]:
 
 
 # ---------------------------------------------------------------------------
-# Vercel Serverless 入口
+# 本地 handler 入口
 # ---------------------------------------------------------------------------
 
 
 def handler(request: Any) -> Dict[str, Any]:
     """
-    Vercel Python Serverless Function 入口。
+    本地 handler 入口(由 scripts/dev_server.py 适配 Flask request 后调用)。
 
     支持 GET /api/profile?uid=546195
     也支持本地用 dict 形式调试:
