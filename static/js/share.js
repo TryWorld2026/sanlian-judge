@@ -165,12 +165,35 @@
     );
   }
 
+  // ========== html2canvas 按需加载(多 CDN 回退,国内优先 bootcdn) ==========
+  var HTML2CANVAS_CDNS = [
+    "https://cdn.bootcdn.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js",
+    "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js",
+    "https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js",
+  ];
+  var _h2cLoading = null;
+
+  function ensureHtml2canvas() {
+    if (typeof html2canvas !== "undefined") return Promise.resolve();
+    if (_h2cLoading) return _h2cLoading;
+    _h2cLoading = HTML2CANVAS_CDNS.reduce(function (chain, src) {
+      return chain.then(function () {
+        return new Promise(function (resolve, reject) {
+          var s = document.createElement("script");
+          s.src = src;
+          s.onload = function () { (typeof html2canvas !== "undefined") ? resolve() : reject(new Error("no global")); };
+          s.onerror = function () { reject(new Error("load failed: " + src)); };
+          document.head.appendChild(s);
+        });
+      });
+    }, Promise.resolve()).then(function () {
+      if (typeof html2canvas === "undefined") throw new Error("html2canvas 所有 CDN 均加载失败");
+    });
+    return _h2cLoading;
+  }
+
   // ========== 分享主流程 ==========
   function share() {
-    if (typeof html2canvas === "undefined") {
-      toast("截图组件未加载,请检查网络", "error");
-      return;
-    }
     var cur = window.Sanlian && window.Sanlian.getCurrent ? window.Sanlian.getCurrent() : null;
     if (!cur || !cur.report) {
       toast("先鉴定一位 UP 主才能分享证书哦", "info");
@@ -178,6 +201,18 @@
     }
     toast("正在烫金印章 ...", "info");
 
+    ensureHtml2canvas().then(buildAndCapture).catch(function (e) {
+      toast("截图组件加载失败,请检查网络后重试", "error");
+      console.error("[share] html2canvas load error:", e);
+    });
+  }
+
+  function buildAndCapture() {
+    var cur = window.Sanlian && window.Sanlian.getCurrent ? window.Sanlian.getCurrent() : null;
+    if (!cur || !cur.report) {
+      toast("鉴定数据已失效,请重新鉴定后再分享", "error");
+      return;
+    }
     // 1. 构造分享卡 HTML(临时挂载到 share-host,渲染完截图后移除)
     var host = document.getElementById("share-host") || (function () {
       var d = document.createElement("div");
@@ -262,9 +297,6 @@
   }
 
   // 兼容 share 接口被旧代码调用
-  window.CyberJudgeShare = {
-    generate: function () { share(); },
-  };
   window.SanlianShare = { share: share };
 
   if (document.readyState === "loading") {

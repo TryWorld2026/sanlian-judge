@@ -5,7 +5,7 @@
   1) 接收 POST {uid, profile}
   2) 校验 profile 完整性
   3) 渲染 prompts/system.md + prompts/user.md
-  4) 调 Agnes 一次拿到 7 模块 JSON
+  4) 调 StepFun 一次拿到 7 模块 JSON
   5) 容错解析(非 JSON -> 正则提取;字段缺失 -> 兜底默认)
   6) 成功后将 {uid, name, score=craziness.score, level, avatar, timestamp}
      写入排行榜(KV 优先,文件兜底)
@@ -216,7 +216,7 @@ def analyze(uid: str, profile: Optional[Dict[str, Any]] = None) -> Dict[str, Any
     except Exception as exc:  # noqa: BLE001
         return {"code": -1, "data": None, "error": f"Prompt 加载失败: {exc}"}
 
-    # 2) 调 LLM (Agnes)
+    # 2) 调 LLM (StepFun step-3.7-flash)
     try:
         parsed = call_llm(system_prompt, user_prompt)
     except ValueError as exc:

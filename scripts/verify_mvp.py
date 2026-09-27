@@ -45,13 +45,20 @@ def verify_repo_structure() -> bool:
         "prompts/system.md",
         "prompts/user.md",
         "data/rank.json",
-        "static/css/style.css",
+        "static/fonts.css",
         "static/js/brand.js",
         "static/js/report.js",
         "static/js/share.js",
         "static/js/rank.js",
         "static/js/danmu.js",
         "static/js/cache.js",
+        "functions/api/profile.js",
+        "functions/api/analyze.js",
+        "functions/api/rank.js",
+        "functions/api/avatar.js",
+        "functions/_shared/wbi.js",
+        "functions/_shared/prompts.js",
+        "functions/_shared/llm.js",
         "scripts/dev_server.py",
     ]
     all_ok = True
@@ -82,12 +89,13 @@ def verify_config() -> bool:
 def verify_html() -> bool:
     section("3. index.html 结构")
     html = (REPO_ROOT / "index.html").read_text(encoding="utf-8")
+    share_js = (REPO_ROOT / "static" / "js" / "share.js").read_text(encoding="utf-8")
     checks = [
         ("含 #page-report", 'id="page-report"' in html),
         ("含 #uid-input", 'id="uid-input"' in html),
         ("含 #btn-submit", 'id="btn-submit"' in html),
         ("含 #cert-card", 'id="cert-card"' in html),
-        ("CDN 引入 html2canvas", "html2canvas" in html),
+        ("share.js 动态加载 html2canvas(多 CDN 回退)", "html2canvas" in share_js and "cdn.bootcdn.com" in share_js),
         ("引入 fonts.css", "fonts.css" in html),
         ("引入 brand.js", "brand.js" in html),
         ("引入 report.js", "report.js" in html),
@@ -101,12 +109,40 @@ def verify_html() -> bool:
 
 
 def verify_js_syntax() -> bool:
-    section("4. JS 语法")
-    js_files = ["brand.js", "report.js", "share.js", "rank.js", "cache.js", "danmu.js"]
+    section("4. JS 语法(node --check,ESM 模式)")
+    import shutil, subprocess, tempfile
+
+    node = shutil.which("node")
+    if not node:
+        check("node 可用", False, "未找到 node,跳过语法检查(请安装 Node.js)")
+        return False
+
+    js_files = [
+        "static/js/brand.js", "static/js/report.js", "static/js/share.js",
+        "static/js/rank.js", "static/js/cache.js", "static/js/danmu.js",
+        "functions/api/profile.js", "functions/api/analyze.js",
+        "functions/api/rank.js", "functions/api/avatar.js",
+        "functions/_shared/wbi.js", "functions/_shared/prompts.js",
+        "functions/_shared/llm.js",
+    ]
     ok = True
-    for fn in js_files:
-        path = REPO_ROOT / "static" / "js" / fn
-        ok &= check(f"{fn} 文件存在", path.exists())
+    for f in js_files:
+        path = REPO_ROOT / f
+        if not path.exists():
+            ok &= check(f"{f} 文件存在", False)
+            continue
+        # 拷贝为 .mjs 强制按 ES Module 解析,与 Cloudflare Workers 运行时一致
+        with tempfile.TemporaryDirectory() as td:
+            tmp = Path(td) / "syntax_check.mjs"
+            tmp.write_text(path.read_text(encoding="utf-8"), encoding="utf-8")
+            try:
+                subprocess.run([node, "--check", str(tmp)], capture_output=True, text=True, timeout=30)
+                ok &= check(f"{f} 语法正确", True)
+            except subprocess.TimeoutExpired:
+                ok &= check(f"{f} 语法正确", False, "node --check 超时")
+            except subprocess.CalledProcessError as e:
+                detail = (e.stderr or e.stdout or "").strip().splitlines()
+                ok &= check(f"{f} 语法正确", False, detail[0] if detail else "parse error")
     return ok
 
 
@@ -248,6 +284,111 @@ def verify_profile_input_validation() -> bool:
         return False
 
 
+def verify_wbi_signature() -> bool:
+    section("12. Wbi 签名回归(wts 必须入签)")
+    import hashlib, shutil, subprocess, tempfile, urllib.parse
+    from pathlib import Path as _Path
+
+    node = shutil.which("node")
+    if not node:
+        check("node 可用", False, "未找到 node,跳过签名回归")
+        return False
+
+    # 固定输入,保证可重复
+    params = {"mid": "546195"}
+    wts = 1780000000
+    mixin = "0123456789abcdef0123456789abcdef"
+
+    # 参考算法:与 bilibili_api.utils.network._enc_wbi 一致
+    signed = dict(params)
+    signed["wts"] = wts
+    query = urllib.parse.urlencode(sorted(signed.items()))
+    expected = hashlib.md5((query + mixin).encode("utf-8")).hexdigest()
+
+    wbi_uri = (REPO_ROOT / "functions" / "_shared" / "wbi.js").as_uri()
+    runner = (
+        "import { encWbi } from " + repr(wbi_uri) + ";\n"
+        "const r = encWbi(" + repr(params) + ", " + repr(mixin) + ", " + str(wts) + ");\n"
+        "console.log(JSON.stringify(r));\n"
+    )
+    try:
+        with tempfile.TemporaryDirectory() as td:
+            tmp = _Path(td) / "wbi_check.mjs"
+            tmp.write_text(runner, encoding="utf-8")
+            proc = subprocess.run([node, str(tmp)], capture_output=True, text=True, timeout=30)
+        if proc.returncode != 0:
+            check("JS encWbi 可执行", False, (proc.stderr or "").strip()[:200])
+            return False
+        actual = json.loads(proc.stdout.strip())
+        ok = True
+        ok &= check("JS encWbi 可执行", True)
+        ok &= check("w_rid 与参考算法一致", actual.get("w_rid") == expected,
+                    f"expected={expected[:16]}... actual={str(actual.get('w_rid'))[:16]}...")
+        ok &= check("wts 原样返回", actual.get("wts") == str(wts), f"actual={actual.get('wts')}")
+        return ok
+    except Exception as e:
+        check("Wbi 签名回归", False, str(e))
+        return False
+
+
+def verify_md5_vectors() -> bool:
+    section("13. MD5 向量回归(RFC 1321 + 填充边界)")
+    import hashlib, shutil, subprocess, tempfile
+
+    node = shutil.which("node")
+    if not node:
+        check("node 可用", False, "未找到 node,跳过 MD5 回归")
+        return False
+
+    cases = [
+        "", "a", "abc", "message digest",
+        "abcdefghijklmnopqrstuvwxyz",
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789",
+        "1234567890123456789012345678901234567890123456789012345678901234567890",
+        "中文测试", "a中b文c",
+        "mid=546195&wts=1780000000" + "0123456789abcdef0123456789abcdef",
+    ]
+    # 填充边界:55/56/57/63/64/65/119/120/127/128 附近必须全覆盖
+    for n in (1, 2, 3, 4, 5, 31, 32, 33, 55, 56, 57, 63, 64, 65, 66, 119, 120, 127, 128, 129, 200, 1000):
+        cases.append("x" * n)
+
+    src = (REPO_ROOT / "functions" / "_shared" / "wbi.js").read_text(encoding="utf-8")
+    start = src.find("const MD5_T = [")
+    end = src.find("})();", start) + len("})();")
+    if start < 0 or end <= start:
+        check("wbi.js 中定位 MD5 实现", False, "未找到 MD5_T 表")
+        return False
+
+    runner = (
+        "const chunk = " + repr(src[start:end]) + ";\n"
+        "const MD5 = (0, eval)(chunk + '\\nMD5');\n"
+        "const cases = " + repr(cases) + ";\n"
+        "console.log(cases.map(s => MD5(s)).join('\\n'));\n"
+    )
+    try:
+        with tempfile.TemporaryDirectory() as td:
+            tmp = Path(td) / "md5_vectors.mjs"
+            tmp.write_text(runner, encoding="utf-8")
+            proc = subprocess.run([node, str(tmp)], capture_output=True, text=True, timeout=60)
+        if proc.returncode != 0:
+            check("JS MD5 可执行", False, (proc.stderr or "").strip()[:200])
+            return False
+        actual = proc.stdout.strip().split("\n")
+        ok = check("JS MD5 可执行", True)
+        fails = 0
+        for s, got in zip(cases, actual):
+            want = hashlib.md5(s.encode("utf-8")).hexdigest()
+            if got != want:
+                fails += 1
+                if fails <= 3:
+                    print(f"      [FAIL] len={len(s)} want={want} got={got}")
+        ok &= check(f"{len(cases)} 个向量与 hashlib 一致", fails == 0, f"{fails} 个不一致")
+        return ok
+    except Exception as e:
+        check("MD5 向量回归", False, str(e))
+        return False
+
+
 def main() -> int:
     print("=" * 60)
     print("sanlian-judge MVP 端到端验证")
@@ -265,6 +406,8 @@ def main() -> int:
     results.append(("/api/rank 端点", verify_rank_endpoint()))
     results.append(("/api/analyze 校验", verify_analyze_input_validation()))
     results.append(("/api/profile 校验", verify_profile_input_validation()))
+    results.append(("Wbi 签名回归", verify_wbi_signature()))
+    results.append(("MD5 向量回归", verify_md5_vectors()))
 
     print("\n" + "=" * 60)
     print("汇总")

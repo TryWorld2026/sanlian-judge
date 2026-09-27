@@ -9,10 +9,11 @@
   var NS = "sanlian";
   var API_BASE = "";
   var ANALYZE_TIMEOUT = 180000;  // 3 分钟(AI reasoning 较慢)
-  var PROFILE_TIMEOUT = 15000;   // 15s(B 站接口 4 并行,正常 2-5s)
+  var PROFILE_TIMEOUT = 25000;   // 25s(B 站接口 4 并行,线上走 Pages Functions 代理链,留足余量)
   var currentUid = null;
   var currentProfile = null;
   var currentReport = null;
+  var currentFromCache = false;
   var _loadingInFlight = false;
   var _loadingTimer = null;
   var _loadingStart = 0;
@@ -48,17 +49,10 @@
     return "/api/avatar?url=" + encodeURIComponent(url);
   }
 
-  // ========== Toast ==========
-
-  function computeJoinDays(regtime) {
-    if (!regtime || regtime <= 0) return 0;
-    var delta = Math.floor(Date.now() / 1000) - regtime;
-    return delta > 0 ? Math.floor(delta / 86400) : 0;
-  }
-
   // ========== 后端代理获取 B 站数据 ==========
   // 浏览器直连 B 站需要 Wbi 签名 + CORS 代理,免费代理经常超时/被风控。
-  // 直接走本服务的 /api/profile 端点,后端用 curl_cffi 拿到完整数据。
+  // 走本服务的 /api/profile 端点:线上由 Cloudflare Pages Function 用 Wbi 签名代理,
+  // 本地由 Flask 用 bilibili-api-python 直连,拿到完整数据。
   function fetchBiliProfile(uid) {
     return getJSON(API_BASE + "/api/profile?uid=" + encodeURIComponent(uid), PROFILE_TIMEOUT)
       .then(function (r) {
@@ -274,6 +268,21 @@
     }
     showHint("");
 
+    // 缓存命中:24h 内鉴定过的 UID 直接出签,不打网络
+    var cached = null;
+    try {
+      if (window.CyberJudgeCache && window.CyberJudgeCache.get) {
+        cached = window.CyberJudgeCache.get(raw);
+      }
+    } catch (_) {}
+    if (cached && cached.profile && cached.report) {
+      currentFromCache = true;
+      renderCert(cached.profile, cached.report, raw);
+      toast("命中 24h 本地缓存,零延迟出签", "success");
+      return;
+    }
+    currentFromCache = false;
+
     _loadingInFlight = true;
     if (btn) btn.disabled = true;
     showLoading();
@@ -289,7 +298,7 @@
       toast("印章盖了太久没盖下来,稍后再来一次吧", "error");
     }, ANALYZE_TIMEOUT + 15000);
 
-    // Step 1: profile (走本地后端 /api/profile,后端用 curl_cffi 直连 B 站)
+    // Step 1: profile(走本服务 /api/profile:线上 Pages Function Wbi 代理,本地 Flask 直连)
     return fetchBiliProfile(raw).then(function (profile) {
       setStep(2);
       showLoadingHint("正在分析 B 站数据,生成鉴定报告 ...");
@@ -450,7 +459,7 @@
       return;
     }
     try {
-      window.SanlianReport.render(currentProfile, currentReport, currentUid);
+      window.SanlianReport.render(currentProfile, currentReport, currentUid, currentFromCache);
       // 报告里渲染了三连按钮,这里也单独 rebind(防止被 report.js 内部 observer 抢占)
       if (typeof window.SanlianReport.rebindSanlian === "function") {
         window.SanlianReport.rebindSanlian();
@@ -487,6 +496,7 @@
         currentProfile = null;
         currentReport = null;
         currentUid = null;
+        currentFromCache = false;
         input.value = "";
         try { input.focus(); } catch (_) {}
       }

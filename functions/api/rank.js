@@ -4,9 +4,12 @@
  *
  * GET /api/rank?type=craziness&page=1&limit=20
  * 返回: {code: 0, data: {list: [...], total, type, page, limit, timestamp}, error: null}
+ *
+ * 数据源:同源静态文件 /data/rank.json(与本地 Python 后端共用同一份文件);
+ * 拉取失败时回退到内置 FALLBACK_RANK_DATA。
  */
 
-const RANK_DATA = [
+const FALLBACK_RANK_DATA = [
   { uid: '88001', name: '影像碎片制造机', score: 92, level: '非常离谱', avatar: 'https://static.hdslb.com/images/member/noface.gif', timestamp: 1784359580 },
   { uid: '88002', name: '弹幕社交天花板', score: 88, level: '非常离谱', avatar: 'https://static.hdslb.com/images/member/noface.gif', timestamp: 1784360978 },
   { uid: '88003', name: '二次元老饕客', score: 85, level: '非常离谱', avatar: 'https://static.hdslb.com/images/member/noface.gif', timestamp: 1784388572 },
@@ -16,6 +19,22 @@ const RANK_DATA = [
   { uid: '88007', name: '三连社死患者', score: 70, level: '很离谱', avatar: 'https://static.hdslb.com/images/member/noface.gif', timestamp: 1784542697 },
   { uid: '88008', name: '摸鱼观察日记', score: 45, level: '有点怪', avatar: 'https://static.hdslb.com/images/member/noface.gif', timestamp: 1784542697 },
 ];
+
+async function loadRankData(origin) {
+  try {
+    const resp = await fetch(new URL('/data/rank.json', origin), {
+      headers: { 'Accept': 'application/json' },
+      signal: AbortSignal.timeout(5000),
+    });
+    if (resp.ok) {
+      const data = await resp.json();
+      if (Array.isArray(data) && data.length) return data;
+    }
+  } catch (e) {
+    console.warn('rank.json fetch failed, fallback to embedded:', e && e.message);
+  }
+  return FALLBACK_RANK_DATA;
+}
 
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -27,7 +46,9 @@ export async function onRequest(context) {
   const url = new URL(context.request.url);
   const page = parseInt(url.searchParams.get('page') || '1', 10);
   const limit = parseInt(url.searchParams.get('limit') || '20', 10);
-  const items = RANK_DATA.filter(it => it && it.uid && typeof it.score === 'number').sort((a, b) => b.score - a.score);
+
+  const rawItems = await loadRankData(url.origin);
+  const items = rawItems.filter(it => it && it.uid && typeof it.score === 'number').sort((a, b) => b.score - a.score);
   const start = (page - 1) * limit;
   return json({ code: 0, data: { list: items.slice(start, start + limit), total: items.length, type: 'craziness', page, limit, timestamp: Math.floor(Date.now() / 1000) }, error: null });
 }

@@ -39,3 +39,6 @@ test_screenshots/
 
 # Local Netlify folder
 .netlify
+
+# Accidental literal $HOME dir (pip --target mishap), never commit
+/$HOME/

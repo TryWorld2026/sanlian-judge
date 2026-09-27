@@ -119,7 +119,7 @@
 
     return moduleWrap(
       "mod-profile",
-      "01 / 08",
+      "01 / 09",
       "核心身份卡",
       "IDENTITY",
       '<div class="profile-top">' +
@@ -179,7 +179,7 @@
 
     return moduleWrap(
       "mod-persona",
-      "02 / 08",
+      "02 / 09",
       "弹幕人格",
       "DANMU PERSONA",
       '<div class="persona-type" style="--persona-color:' + escape(color) + '">' +
@@ -206,7 +206,7 @@
 
     return moduleWrap(
       "mod-pastlife",
-      "03 / 08",
+      "03 / 09",
       "赛博前世",
       "PAST LIFE",
       '<div class="pastlife-emblem">' +
@@ -255,7 +255,7 @@
 
     return moduleWrap(
       "mod-mental",
-      "04 / 08",
+      "04 / 09",
       "精神状态",
       "MENTAL STATE",
       gaugeHtml +
@@ -296,7 +296,7 @@
 
     return moduleWrap(
       "mod-fortune",
-      "05 / 08",
+      "05 / 09",
       "2026 运势",
       "FORTUNE 2026",
       '<div class="fortune-grid">' + cellHtml + '</div>' +
@@ -375,7 +375,7 @@
 
     return moduleWrap(
       "mod-soulmate",
-      "06 / 08",
+      "06 / 09",
       "赛博灵魂伴侣",
       "SOULMATE",
       '<div class="soulmate-row">' +
@@ -414,7 +414,7 @@
 
     return moduleWrap(
       "mod-danmu",
-      "07 / 08",
+      "07 / 09",
       "弹幕风格",
       "DANMU STYLE",
       '<div class="danmu-block say">' +
@@ -444,7 +444,7 @@
 
     return moduleWrap(
       "mod-craziness",
-      "08 / 08",
+      "08 / 09",
       "离谱指数",
       "CRAZINESS INDEX",
       '<div class="craziness-head">' +

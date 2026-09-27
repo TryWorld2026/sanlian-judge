@@ -190,7 +190,7 @@ except Exception as e:
     log(FAIL, f"请求异常: {e}")
 
 # 5.2 静态资源 Cache-Control
-for path in ["static/js/share.js?ts=1", "static/css/style.css?ts=1"]:
+for path in ["static/js/share.js?ts=1", "static/fonts.css?ts=1"]:
     try:
         r = requests.get(f"{BASE}/{path}", timeout=10)
         cc = r.headers.get("Cache-Control", "")
