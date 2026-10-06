@@ -8,6 +8,7 @@
 ![StepFun](https://img.shields.io/badge/LLM-StepFun%20step--3.7--flash-FF6B6B)
 ![Cloudflare Pages](https://img.shields.io/badge/线上-Cloudflare%20Pages%20Functions-F38020?logo=cloudflare&logoColor=white)
 ![Flask](https://img.shields.io/badge/本地-Flask%203.0-black?logo=flask)
+![License](https://img.shields.io/badge/license-MIT-C0452F?style=flat-square)
 
 ## 这是什么
 
@@ -219,5 +220,7 @@ B 站部分接口要求 Wbi 签名。算法要点(`functions/_shared/wbi.js` 与
 - **Cloudflare Pages**:免费额度内(10 万次 Functions 请求/天)基本零成本
 
 ## 许可
+
+本项目采用 [MIT License](LICENSE) 开源。
 
 仅供娱乐。鉴定由 AI 生成,与 B 站官方无关。
